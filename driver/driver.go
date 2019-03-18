@@ -71,7 +71,7 @@ func (d *HostNicDriver) CreateNetwork(r *network.CreateNetworkRequest) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if n, exists := d.networks[r.NetworkID]; exists {
+	if _, exists := d.networks[r.NetworkID]; exists {
 		return fmt.Errorf("Exist network [%s]", r.NetworkID)
 	}
 
@@ -95,6 +95,9 @@ func (d *HostNicDriver) CreateNetwork(r *network.CreateNetworkRequest) error {
 				for key, val := range genericOpts {
 					if key == "host_iface" {
 						nw.hostnic.Name = val.(string)
+					}
+					if key == "ip" {
+						nw.hostnic.Address = val.(string)
 					}
 				}
 			}
@@ -126,7 +129,7 @@ func (d *HostNicDriver) DeleteNetwork(r *network.DeleteNetworkRequest) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	delete(d.networks, r.NetworkID)
-	d.saveConfig()
+	//d.saveConfig()
 	return nil
 }
 func (d *HostNicDriver) FreeNetwork(r *network.FreeNetworkRequest) error {
@@ -145,22 +148,17 @@ func (d *HostNicDriver) CreateEndpoint(r *network.CreateEndpointRequest) (*netwo
 		return nil, fmt.Errorf("Can not find network [ %s ].", r.NetworkID)
 	}
 
-	if r.Interface.Address == "" {
-		return nil, fmt.Errorf("IP address is missed.")
-	}
+	/* if r.Interface.Address != "" {
+		return nil, fmt.Errorf("IP address cannot be defined.")
+	} */
 
-	nw.hostnic.Address = r.Interface.Address
 	nw.endpoint.srcName = nw.hostnic.Name
 	nw.endpoint.id = r.EndpointID
 
 	endpointInterface := &network.EndpointInterface{}
+	endpointInterface.Address = nw.hostnic.Address
+	endpointInterface.MacAddress = nw.hostnic.HardwareAddr
 
-	if r.Interface.Address == "" {
-		endpointInterface.Address = nw.hostnic.Address
-	}
-	if r.Interface.MacAddress == "" {
-		endpointInterface.MacAddress = nw.hostnic.HardwareAddr
-	}
 	resp := &network.CreateEndpointResponse{Interface: endpointInterface}
 	log.Debug("CreateEndpoint resp interface: [ %+v ] ", resp.Interface)
 	return resp, nil
